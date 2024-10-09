@@ -38,7 +38,8 @@ void bindExecutionContext(py::module &mod) {
              assert(cudaq::spin_op::canonicalize(spin) == spin);
            })
       .def("getExpectationValue",
-           [](cudaq::ExecutionContext &ctx) { return ctx.expectationValue; });
+           [](cudaq::ExecutionContext &ctx) { return ctx.expectationValue; })
+      .def_readwrite("noiseModel", &cudaq::ExecutionContext::noiseModel);
   mod.def(
       "setExecutionContext",
       [](cudaq::ExecutionContext &ctx) {
