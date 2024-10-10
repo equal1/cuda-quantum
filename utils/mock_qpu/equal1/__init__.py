@@ -56,10 +56,6 @@ def getNumRequiredQubits(function):
                 str(a).split("requiredQubits\"=")[-1].split(" ")[0].replace(
                     "\"", ""))
 
-
-class MyFormat(BaseModel):
-    target : str
-
 # Here we expose a way to post jobs,
 # Must have a Access Token, Job Program must be Adaptive Profile
 # with entry_point tag
@@ -76,7 +72,7 @@ async def postJob(job: Job):
     m = llvm.module.parse_bitcode(decoded)
     mstr = str(m)
     assert ('entry_point' in mstr)
-
+    print(mstr)
     # Get the function, number of qubits, and kernel name
     function = getKernelFunction(m)
     if function == None:
@@ -97,6 +93,7 @@ async def postJob(job: Job):
     # Invoke the Kernel
     cudaq.testing.toggleDynamicQubitManagement()
     qubits, context = cudaq.testing.initialize(numQubitsRequired, shots)
+
     kernel()
     results = cudaq.testing.finalize(qubits, context)
     results.dump()
