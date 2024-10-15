@@ -35,6 +35,25 @@ def XCtrlOneTargetToCNot : Pat<
 
 //===----------------------------------------------------------------------===//
 
+def InvokeOnZWithOneControl : Constraint<CPred<
+    "callToInvokeWithZCtrlOneTarget($0.getValue(), $1)">>;
+
+def CreateCallCz : NativeCodeCall<
+    "[&]() -> std::size_t {"
+    "  $_builder.create<mlir::LLVM::CallOp>($_loc,"
+    "    mlir::TypeRange{}, cudaq::opt::QIRCz, $0.drop_front(2));"
+    "  return 0; }()">;
+
+// %1 = address_of @__quantum__qis__z__ctl
+// %2 = call @invokewithControlBits %1, %ctrl, %targ
+// ─────────────────────────────────────────────────
+// %2 = call __quantum__qis__cz %ctrl, %targ
+def ZCtrlOneTargetToCZ : Pat<
+    (LLVM_CallOp $callee, $args, $_, $_), (CreateCallCz $args),
+    [(InvokeOnZWithOneControl $callee, $args)]>;
+
+//===----------------------------------------------------------------------===//
+
 def NeedsRenaming : Constraint<CPred<"needsToBeRenamed($0.getValue())">>;
 
 def CreateAddressOf : NativeCodeCall<
