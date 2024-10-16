@@ -149,9 +149,7 @@ bool Equal1ServerHelper::jobIsDone(ServerMessage &getJobResponse) {
                   .get<std::string>(); // All job get and post responses at an
                                          // array of [resdata, httpstatuscode]
   if (status == "error") {
-    std::string msg = "";
-    if (getJobResponse.count("error"))
-      msg = getJobResponse["message"].get<std::string>();
+    std::string msg = getJobResponse["message"].get<std::string>();
     throw std::runtime_error("Job failed to execute msg = [" + msg + "]");
   } else if (status == "executing") {
     return false;
