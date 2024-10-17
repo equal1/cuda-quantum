@@ -23,7 +23,7 @@
 namespace cudaq {
 
 class Equal1ServerHelper : public ServerHelper {
-  static constexpr const llvm::StringLiteral DEFAULT_URL = "http://localhost/";
+  static constexpr const llvm::StringLiteral DEFAULT_URL = "http://localhost:62444";
 
 public:
 
