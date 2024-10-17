@@ -7,29 +7,23 @@
  ******************************************************************************/
 #include "common/Logger.h"
 #include "common/MeasureCounts.h"
-#include "common/RestClient.h"
 #include "common/ServerHelper.h"
 #include "cudaq/utils/cudaq_utils.h"
 
 #include "nlohmann/json.hpp"
 
-#include <fstream>
-#include <iostream>
-#include <llvm/ADT/STLExtras.h>
 #include <llvm/ADT/StringRef.h>
-#include <llvm/Support/Process.h>
+
+#include <cstdlib>
 #include <optional>
-#include <regex>
 #include <string>
 #include <tuple>
-#include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 namespace cudaq {
 
 class Equal1ServerHelper : public ServerHelper {
-  static constexpr const llvm::StringLiteral DEFAULT_URL = "http://localhost/";
+  static constexpr const llvm::StringLiteral DEFAULT_URL = "http://localhost:62444";
 
 public:
 
@@ -53,19 +47,46 @@ public:
 
 private:
   std::string equal1ServerURL;
+  std::string machine;
+  std::string optimizationLevel;
 
-  inline std::optional<std::string> getEnv(llvm::StringRef envVar) {
+  inline std::optional<std::string> getEnv(llvm::StringRef envVar) const {
     const char* val = std::getenv(envVar.data());
     if(!val)
       return std::nullopt;
     return std::string(val);
+  }
+
+  inline std::string getConfig(const std::string& envVarName, const std::string& configName, const std::string& defaultValue) {
+    if(envVarName.data()) {
+      auto env = getEnv(envVarName);
+      if(env.has_value())
+        return env.value();
+    }
+
+    auto iter = backendConfig.find(configName);
+    if(iter != backendConfig.end())
+      return iter->second;
+
+    return defaultValue;
   }
 };
 
 void Equal1ServerHelper::initialize(BackendConfig config) {
   cudaq::debug("{}ServerHelper::initialize", name());
 
-  equal1ServerURL = getEnv("EQUAL1_SERVER_URL").value_or(DEFAULT_URL.str());
+  backendConfig = config;
+
+  equal1ServerURL = getConfig("EQUAL1_SERVER_URL", "url", DEFAULT_URL.str());
+
+  if(!equal1ServerURL.ends_with("/"))
+    equal1ServerURL += "/";
+
+  machine = getConfig("EQUAL1_TARGET_MACHINE", "machine", "default");
+
+  optimizationLevel = getConfig("EQUAL1_OPTIMIZATION_LEVEL", "opt", "1");
+
+  parseConfigForCommonParams(config);
 
   return;
 }
@@ -77,6 +98,8 @@ RestHeaders Equal1ServerHelper::getHeaders() {
   headers["Content-Type"] = "application/json";
   headers["Connection"] = "keep-alive";
   headers["Accept"] = "*/*";
+  headers["User-Agent"] = "cudaq/" + name();
+
   // Return the headers
   return headers;
 }
@@ -90,10 +113,11 @@ ServerJobPayload Equal1ServerHelper::createJob(std::vector<KernelExecution> &cir
   for(const auto& code : circuitNodes) {
     ServerMessage m;
     m["target"] = name();
+    m["machine"] = machine;
     m["format"] = "QIR";
     m["program"] = code.code;
     m["programName"] = code.name;
-    m["shots"] = "1000";
+    m["shots"] = shots;
 
     messages.push_back(m);
   }
@@ -105,7 +129,7 @@ std::string Equal1ServerHelper::extractJobId(ServerMessage &postResponse) {
   cudaq::debug("{}ServerHelper::extractJobId", name());
 
   std::string jobToken =
-      postResponse["job_id"]
+      postResponse["jobId"]
           .get<std::string>();
   return jobToken;
 }
@@ -124,13 +148,9 @@ bool Equal1ServerHelper::jobIsDone(ServerMessage &getJobResponse) {
   auto status = getJobResponse["status"]
                   .get<std::string>(); // All job get and post responses at an
                                          // array of [resdata, httpstatuscode]
-  if (status == "failed") {
-    std::string msg = "";
-    if (getJobResponse.count("error"))
-      msg = getJobResponse["error"]["text"].get<std::string>();
+  if (status == "error") {
+    std::string msg = getJobResponse["message"].get<std::string>();
     throw std::runtime_error("Job failed to execute msg = [" + msg + "]");
-  } else if (status == "waiting") {
-    return false;
   } else if (status == "executing") {
     return false;
   } else

@@ -15,9 +15,11 @@ config:
   # Tell NVQ++ to generate glue code to set the target backend name
   gen-target-backend: true
   # Add the orca-qpu library to the link list
-  link-libs: ["-lcudaq-equal1-qpu"]
+  link-libs: ["-lcudaq-rest-qpu"]
 
   codegen-emission: qir-adaptive
+
+  library-mode: false
 
 target-arguments:
   - key: machine
@@ -25,3 +27,14 @@ target-arguments:
     type: string
     platform-arg: machine
     help-string: "Specify the Equal1 QPU family."
+  - key: url
+    required: false
+    type: string
+    platform-arg: url
+    help-string: "Specify the URL."
+  - key: opt
+    required: false
+    type: string
+    platform-arg: opt
+    help-string: "Specify the optimization levels to be applied to the circuit"
+
