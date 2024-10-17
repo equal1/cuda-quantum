@@ -10,7 +10,6 @@
 
 #include "cudaq/host_config.h"
 
-#include <array>
 #include <complex>
 #include <math.h>
 #include <unordered_map>
@@ -180,7 +179,7 @@ protected:
       std::unordered_map<KeyT, std::vector<kraus_channel>, KeyTHash>;
 
   static constexpr const char *availableOps[] = {
-      "x", "y", "z", "h", "s", "t", "rx", "ry", "rz", "r1", "u3"};
+      "x", "y", "z", "h", "s", "t", "rx", "ry", "rz", "r1", "u3", "mz"};
 
   // The noise model is a mapping of quantum operation
   // names to a Kraus channel applied after the operation is applied.
