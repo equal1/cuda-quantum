@@ -311,28 +311,24 @@ public:
 class readout_error : public kraus_channel {
 public:
   readout_error(std::vector<cudaq::real> data) : kraus_channel() {
-    auto k0= probMatrixToKraus(data);
-    ops = {k0};
+    ops = probMatrixToKraus(data);
     validateCompleteness();
   }
-
   template <typename T>
   readout_error(std::initializer_list<T> &&initList) {
-    auto k0 = probMatrixToKraus(initList);
-    ops = {k0};
+    ops = probMatrixToKraus(initList);
     validateCompleteness();
   }
 private:
-  // TODO: dummy implementation for now just to prove functionality
-  // proper math implementation
-  std::vector<cudaq::complex>
-  probMatrixToKraus(std::vector<cudaq::real> probMatrix) {
-    std::vector<cudaq::complex> k0(probMatrix.size());
-    std::transform(probMatrix.begin(), probMatrix.end(), k0.begin(), [](cudaq::real r) -> cudaq::complex {
-      return cudaq::complex(std::sqrt(r), 0.0);
-    });
+  std::vector<kraus_op>
+  probMatrixToKraus(const std::vector<cudaq::real>& probMatrix) {
+    std::vector<cudaq::complex> k0 = {std::sqrt(probMatrix[0]), 0,
+                                      0, std::sqrt(probMatrix[3])};
 
-    return k0;
+    std::vector<cudaq::complex> k1 = {0, std::sqrt(probMatrix[1]),
+                                      std::sqrt(probMatrix[2]), 0};
+
+    return {k0, k1};
   }
 };
 
