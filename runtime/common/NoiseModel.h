@@ -11,6 +11,7 @@
 #include "cudaq/host_config.h"
 
 #include <algorithm>
+#include <cmath>
 #include <complex>
 #include <math.h>
 #include <unordered_map>
@@ -310,31 +311,28 @@ public:
 class readout_error : public kraus_channel {
 public:
   readout_error(std::vector<cudaq::real> data) : kraus_channel() {
-    auto [k0, k1] = probMatrixToKraus(data);
-    ops = {k0, k1};
-    // validateCompleteness();
+    auto k0= probMatrixToKraus(data);
+    ops = {k0};
+    validateCompleteness();
   }
 
   template <typename T>
   readout_error(std::initializer_list<T> &&initList) {
-    auto [k0, k1] = probMatrixToKraus(initList);
-    ops = {k0, k1};
-    // validateCompleteness();
+    auto k0 = probMatrixToKraus(initList);
+    ops = {k0};
+    validateCompleteness();
   }
 private:
   // TODO: dummy implementation for now just to prove functionality
   // proper math implementation
-  std::pair<std::vector<cudaq::complex>, std::vector<cudaq::complex>>
+  std::vector<cudaq::complex>
   probMatrixToKraus(std::vector<cudaq::real> probMatrix) {
-    std::vector<cudaq::complex> k0(probMatrix.size()), k1(probMatrix.size());
+    std::vector<cudaq::complex> k0(probMatrix.size());
     std::transform(probMatrix.begin(), probMatrix.end(), k0.begin(), [](cudaq::real r) -> cudaq::complex {
-      return cudaq::complex(r, 0.0);
-    });
-    std::transform(probMatrix.begin(), probMatrix.end(), k1.begin(), [](cudaq::real r) -> cudaq::complex {
-      return cudaq::complex(r, 0.0);
+      return cudaq::complex(std::sqrt(r), 0.0);
     });
 
-    return std::make_pair(std::move(k0), std::move(k1));
+    return k0;
   }
 };
 
