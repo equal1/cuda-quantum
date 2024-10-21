@@ -43,6 +43,31 @@ void extractKrausData(py::buffer_info &info, complex *data) {
          sizeof(complex) * (info.shape[0] * info.shape[1]));
 }
 
+void extractRealData(py::buffer_info &info, real* data)  {
+  if (info.format != py::format_descriptor<real>::format())
+    throw std::runtime_error(
+        "Incompatible buffer format, must be np.complex128.");
+
+  if (info.ndim != 2)
+    throw std::runtime_error("Incompatible buffer shape.");
+
+  constexpr bool rowMajor = true;
+  typedef Eigen::MatrixXd::Scalar Scalar;
+  typedef Eigen::Matrix<real, Eigen::Dynamic, Eigen::Dynamic,
+                        Eigen::RowMajor>
+      RowMajorMat;
+  auto strides = Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>(
+      info.strides[rowMajor ? 0 : 1] / (py::ssize_t)sizeof(Scalar),
+      info.strides[rowMajor ? 1 : 0] / (py::ssize_t)sizeof(Scalar));
+  auto map =
+      Eigen::Map<RowMajorMat, 0, Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>>(
+          static_cast<Scalar *>(info.ptr), info.shape[0], info.shape[1],
+          strides);
+  RowMajorMat eigenMat(map);
+  memcpy(data, eigenMat.data(),
+         sizeof(real) * (info.shape[0] * info.shape[1]));
+}
+
 /// @brief Bind the cudaq::noise_model, kraus_op, and kraus_channel.
 void bindNoiseModel(py::module &mod) {
 
@@ -221,6 +246,27 @@ void bindNoiseChannels(py::module &mod) {
       .def(
           py::init<double>(), py::arg("probability"),
           "Initialize the `PhaseFlipChannel` with the provided `probability`.");
+
+  py::class_<readout_error, kraus_channel>(
+    mod, "ReadoutError",
+    R"#(Models the probabilistic errors that can happen when measuring qubits.
+    It allows to define a custom probability distribution that describes how
+    often a qubit's measurement result differs from its actual state.
+    Its constructor expects a 2x2 matrix of float values that represents the
+    probability matrix applied to the probabilistic state of the qubit measurement.
+    It takes the form of
+
+    P = [[p(0|0), p(0|1)], [p(1|0), p(1,1)]]
+
+    where p(i|j) is the probability of measuring outcome i when the actual state is j
+
+    )#")
+    .def(py::init([](const py::buffer *b) {
+      py::buffer_info info = b->request();
+      std::vector<real> v(info.shape[0] * info.shape[1]);
+      extractRealData(info, v.data());
+      return readout_error(v);
+    }));
 }
 
 void bindNoise(py::module &mod) {
