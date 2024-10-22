@@ -127,6 +127,7 @@ DepolarizationChannel = cudaq_runtime.DepolarizationChannel
 AmplitudeDampingChannel = cudaq_runtime.AmplitudeDampingChannel
 PhaseFlipChannel = cudaq_runtime.PhaseFlipChannel
 BitFlipChannel = cudaq_runtime.BitFlipChannel
+ReadoutError = cudaq_runtime.ReadoutError
 
 # Functions
 sample_async = cudaq_runtime.sample_async

@@ -1315,6 +1315,8 @@ public:
     // Flush the Gate Queue
     flushGateQueue();
 
+    applyNoiseChannel("mz", {}, {qubitIdx}, {});
+
     // If sampling, just store the bit, do nothing else.
     if (handleBasicSampling(qubitIdx, registerName))
       return true;
