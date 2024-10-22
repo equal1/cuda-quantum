@@ -7,8 +7,9 @@
 # ============================================================================ #
 
 import cudaq
+
 from fastapi import FastAPI, HTTPException, Header, Request
-from typing import Union
+from typing import Union, Optional
 import uvicorn, uuid, base64, ctypes
 from pydantic import BaseModel
 from llvmlite import binding as llvm
@@ -16,13 +17,21 @@ from llvmlite import binding as llvm
 # Define the REST Server App
 app = FastAPI()
 
-# Jobs look like the following type
+#Define the Request and Response API's
 class Job(BaseModel):
     target: str
+    machine : str
     format: str
     program: str
     programName: str
     shots: int
+
+class Response(BaseModel):
+    status: str
+    jobId: str
+    results : Optional[list] = list()
+    logs : Optional[str] = ""
+    message : Optional[str] = ""
 
 # Keep track of Job Ids to their Names
 createdJobs = {}
@@ -66,7 +75,7 @@ async def postJob(job: Job):
 
     print('Posting job with shots = ', job.shots)
     newId = str(uuid.uuid4())
-    shots = 1500
+    shots = job.shots
     program = job.program
     decoded = base64.b64decode(program)
     m = llvm.module.parse_bitcode(decoded)
@@ -97,12 +106,12 @@ async def postJob(job: Job):
     kernel()
     results = cudaq.testing.finalize(qubits, context)
     results.dump()
-    createdJobs[newId] =  (job.programName, results)
 
+    createdJobs[newId] =  (job.programName, results)
     engine.remove_module(m)
 
     # Job "created", return the id
-    return {"job_id": newId}
+    return Response(status="executing", jobId=newId)
 
 # Retrieve the job, simulate having to wait by counting to 3
 # until we return the job results
@@ -113,15 +122,13 @@ async def getResults(jobId: str):
     # Simulate asynchronous execution
     if countJobGetRequests < 3:
         countJobGetRequests += 1
-        return {"status": "executing"}
+        return Response(status="executing", jobId=jobId)
 
     countJobGetRequests = 0
     name, results = createdJobs[jobId]
 
     print(results)
-    res = {"status": "done", "results": results.serialize() }
-    return res
-
+    return Response(status="done", jobId=jobId, results=results.serialize())
 
 
 def startServer(port):
