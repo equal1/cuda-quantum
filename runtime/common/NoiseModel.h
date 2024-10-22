@@ -9,7 +9,6 @@
 #pragma once
 
 #include "cudaq/host_config.h"
-#include <array>
 #include <complex>
 #include <functional>
 #include <math.h>
@@ -75,7 +74,8 @@ enum class noise_model_type {
   pauli1,
   pauli2,
   depolarization1,
-  depolarization2
+  depolarization2,
+  readout_error,
 };
 
 // Keep the noise_model_type and noise_model_strings in sync. We don't use
@@ -94,7 +94,9 @@ static constexpr const char *noise_model_strings[] = {
     "pauli1",
     "pauli2",
     "depolarization1",
-    "depolarization2"};
+    "depolarization2",
+    "readout_error",
+  };
 
 std::string get_noise_model_type_name(noise_model_type type);
 
@@ -978,6 +980,43 @@ public:
       : depolarization2(std::vector<cudaq::real>{probability}) {}
   REGISTER_KRAUS_CHANNEL(
       noise_model_strings[(int)noise_model_type::depolarization2])
+};
+
+/// @brief readout_error is a type of error that Models
+/// the probabilistic errors that can happen when measuring qubits.
+/// It allows to define a custom probability distribution that describes how
+/// often a qubit's measurement result differs from its actual state.
+/// Its constructor expects a 2x2 matrix of float values that represents the
+/// probability matrix applied to the probabilistic state of the qubit measurement.
+/// It takes the form of
+/// P = [[p(0|0), p(0|1)], [p(1|0), p(1,1)]]
+/// where p(i|j) is the probability of measuring outcome i when the actual state is j
+class readout_error : public kraus_channel {
+public:
+  readout_error(std::vector<cudaq::real> data) : kraus_channel() {
+    ops = probMatrixToKraus(data);
+    validateCompleteness();
+    generateUnitaryParameters();
+  }
+  template <typename T>
+  readout_error(std::initializer_list<T> &&initList) {
+    ops = probMatrixToKraus(initList);
+    validateCompleteness();
+    generateUnitaryParameters();
+  }
+private:
+  std::vector<kraus_op>
+  probMatrixToKraus(const std::vector<cudaq::real>& probMatrix) {
+    std::vector<cudaq::complex> k0 = {std::sqrt(probMatrix[0]), 0,
+                                      0, std::sqrt(probMatrix[3])};
+
+    std::vector<cudaq::complex> k1 = {0, std::sqrt(probMatrix[1]),
+                                      std::sqrt(probMatrix[2]), 0};
+
+    return {k0, k1};
+  }
+  REGISTER_KRAUS_CHANNEL(
+    noise_model_strings[(int)noise_model_type::readout_error])
 };
 
 } // namespace cudaq

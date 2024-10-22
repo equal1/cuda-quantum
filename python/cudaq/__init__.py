@@ -133,6 +133,7 @@ Pauli1 = cudaq_runtime.Pauli1
 Pauli2 = cudaq_runtime.Pauli2
 Depolarization1 = cudaq_runtime.Depolarization1
 Depolarization2 = cudaq_runtime.Depolarization2
+ReadoutError = cudaq_runtime.ReadoutError
 
 # Functions
 sample_async = cudaq_runtime.sample_async
@@ -173,7 +174,7 @@ def synthesize(kernel, *args):
 
 def complex():
     """
-    Return the data type for the current simulation backend, 
+    Return the data type for the current simulation backend,
     either `numpy.complex128` or `numpy.complex64`.
     """
     target = get_target()
@@ -185,8 +186,8 @@ def complex():
 
 def amplitudes(array_data):
     """
-    Create a state array with the appropriate data type for the 
-    current simulation backend target. 
+    Create a state array with the appropriate data type for the
+    current simulation backend target.
     """
     return numpy.array(array_data, dtype=complex())
 
