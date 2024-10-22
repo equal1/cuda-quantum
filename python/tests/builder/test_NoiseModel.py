@@ -190,6 +190,47 @@ def test_bit_flip_simple():
     assert got_one_zero_counts == want_counts
     cudaq.reset_target()
 
+def test_readout_error_simple():
+    """
+    Tests the readout error simulating bitflip probabilities
+    """
+
+    cudaq.set_random_seed(13)
+    cudaq.set_target('density-matrix-cpu')
+    noise = cudaq.NoiseModel()
+
+    # Readout error that behaves like a bit-flip
+    bitflip_error = cudaq.ReadoutError(np.array([[0, 1], [1, 0]], dtype=np.float64))
+    # Readout error that simulates a 50/50 random chance of reading
+    random_error = cudaq.ReadoutError(np.array([[0.5, 0.5], [0.5, 0.5]], dtype=np.float64))
+
+    noise.add_channel("mz", [0], bitflip_error)
+    noise.add_channel("mz", [1], random_error)
+
+    kernel = cudaq.make_kernel()
+    qubits = kernel.qalloc(2)
+
+    kernel.x(qubits[0])
+    kernel.x(qubits[1])
+
+    kernel.mz(qubits)
+
+    # Without noise, both qubits in the |1> state.
+    counts = cudaq.sample(kernel)
+    counts.dump()
+    want_counts = 1000
+    got_one_one_counts = counts["11"]
+    assert got_one_one_counts == want_counts
+
+    # With noise, we will have a 50/50 to get "00" or "01"
+    noisy_counts = cudaq.sample(kernel, noise_model=noise)
+    noisy_counts.dump()
+    want_probability = 0.5
+    got_zero_zero_probability = noisy_counts.probability("00")
+    got_zero_one_probability = noisy_counts.probability("01")
+    assert np.isclose(got_zero_zero_probability, want_probability, atol=.1)
+    assert np.isclose(got_zero_one_probability, want_probability, atol=.1)
+
 
 def test_kraus_channel():
     """Tests the Kraus Channel with a series of custom Kraus Operators."""

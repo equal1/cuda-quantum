@@ -6,20 +6,28 @@
  * the terms of the Apache License 2.0 which accompanies this distribution.    *
  ******************************************************************************/
 #include "py_NoiseModel.h"
+
+#include "cudaq.h"
+#include "cudaq/host_config.h"
 #include "common/EigenDense.h"
 #include "common/NoiseModel.h"
-#include "cudaq.h"
-#include <iostream>
+
+#include <pybind11/buffer_info.h>
 #include <pybind11/complex.h>
+#include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
+
+#include <complex>
+#include <vector>
 
 namespace cudaq {
 
 /// @brief Extract the array data from a buffer_info into our
 /// own allocated data pointer.
 /// This supports 2-d array in either row or column major.
-void extractKrausData(py::buffer_info &info, complex *data) {
-  if (info.format != py::format_descriptor<complex>::format())
+template<typename PythonType, typename TargetType>
+void extractKrausData(py::buffer_info &info, TargetType *data) {
+  if (info.format != py::format_descriptor<TargetType>::format())
     throw std::runtime_error(
         "Incompatible buffer format, must be np.complex128.");
 
@@ -27,8 +35,8 @@ void extractKrausData(py::buffer_info &info, complex *data) {
     throw std::runtime_error("Incompatible buffer shape.");
 
   constexpr bool rowMajor = true;
-  typedef Eigen::MatrixXcd::Scalar Scalar;
-  typedef Eigen::Matrix<std::complex<double>, Eigen::Dynamic, Eigen::Dynamic,
+  typedef typename Eigen::Matrix<PythonType, Eigen::Dynamic, Eigen::Dynamic>::Scalar Scalar;
+  typedef Eigen::Matrix<PythonType, Eigen::Dynamic, Eigen::Dynamic,
                         Eigen::RowMajor>
       RowMajorMat;
   auto strides = Eigen::Stride<Eigen::Dynamic, Eigen::Dynamic>(
@@ -40,7 +48,7 @@ void extractKrausData(py::buffer_info &info, complex *data) {
           strides);
   RowMajorMat eigenMat(map);
   memcpy(data, eigenMat.data(),
-         sizeof(complex) * (info.shape[0] * info.shape[1]));
+         sizeof(TargetType) * (info.shape[0] * info.shape[1]));
 }
 
 /// @brief Bind the cudaq::noise_model, kraus_op, and kraus_channel.
@@ -62,13 +70,13 @@ void bindNoiseModel(py::module &mod) {
             self.add_channel(opName, qubits, channel);
           },
           py::arg("operator"), py::arg("qubits"), py::arg("channel"),
-          R"#(Add the given :class:`KrausChannel` to be applied after invocation 
+          R"#(Add the given :class:`KrausChannel` to be applied after invocation
 of the specified quantum operation.
 
 Args:
   operator (str): The quantum operator to apply the noise channel to.
   qubits (List[int]): The qubit/s to apply the noise channel to.
-  channel (cudaq.KrausChannel): The :class:`KrausChannel` to apply 
+  channel (cudaq.KrausChannel): The :class:`KrausChannel` to apply
     to the specified `operator` on the specified `qubits`.)#")
       .def(
           "get_channels",
@@ -94,7 +102,7 @@ void bindKrausOp(py::module &mod) {
       .def(py::init([](const py::buffer &b) {
              py::buffer_info info = b.request();
              std::vector<complex> v(info.shape[0] * info.shape[1]);
-             extractKrausData(info, v.data());
+             extractKrausData<std::complex<double>>(info, v.data());
              return kraus_op(v);
            }),
            "Create a :class:`KrausOperator` from a buffer of data, like a "
@@ -122,7 +130,7 @@ void bindNoiseChannels(py::module &mod) {
                auto info = buffer.request();
                auto shape = info.shape;
                std::vector<complex> v(shape[0] * shape[1]);
-               extractKrausData(info, v.data());
+               extractKrausData<std::complex<double>>(info, v.data());
                kops.emplace_back(v);
              }
              return kraus_channel(kops);
@@ -154,13 +162,13 @@ void bindNoiseChannels(py::module &mod) {
       K_3 = sqrt(probability / 3) * Z
 
       where I, X, Y, Z are the 2x2 Pauli matrices.
-      
-      The constructor expects a float value, `probability`, representing the 
+
+      The constructor expects a float value, `probability`, representing the
       probability the state decay will occur. The qubit will remain untouched,
       therefore, with a probability of `1 - probability`. And the X,Y,Z operators
       will be applied with a probability of `probability / 3`.
-      
-      For `probability = 0.0`, the channel will behave noise-free. 
+
+      For `probability = 0.0`, the channel will behave noise-free.
       For `probability = 0.75`, the channel will fully depolarize the state.
       For `proability = 1.0`, the channel will be uniform.)#")
       .def(py::init<double>(), py::arg("probability"),
@@ -170,14 +178,14 @@ void bindNoiseChannels(py::module &mod) {
   py::class_<amplitude_damping_channel, kraus_channel>(
       mod, "AmplitudeDampingChannel",
       R"#(Models the dissipation of energy due to system interactions with the
-      environment. 
+      environment.
 
       The Kraus Channels are thereby defined to be:
 
       K_0 = sqrt(1 - probability) * I
 
-      K_1 = sqrt(probability) * 0.5 * (X + iY) 
-      
+      K_1 = sqrt(probability) * 0.5 * (X + iY)
+
       Its constructor expects a float value, `probability`,
       representing the probablity that the qubit will decay to its ground
       state. The probability of the qubit remaining in the same state is
@@ -188,18 +196,18 @@ void bindNoiseChannels(py::module &mod) {
 
   py::class_<bit_flip_channel, kraus_channel>(
       mod, "BitFlipChannel",
-      R"#(Models the decoherence of the qubit state. Its constructor expects a 
-      float value, `probability`, representing the probability that the qubit 
-      flips from the 1-state to the 0-state, or vice versa. E.g, the 
-      probability of a random X-180 rotation being applied to the qubit. 
-      
+      R"#(Models the decoherence of the qubit state. Its constructor expects a
+      float value, `probability`, representing the probability that the qubit
+      flips from the 1-state to the 0-state, or vice versa. E.g, the
+      probability of a random X-180 rotation being applied to the qubit.
+
       The Kraus Channels are thereby defined to be:
 
       K_0 = sqrt(1 - probability) * I
 
-      K_1 = sqrt(probability ) * X     
-      
-      The probability of the qubit remaining in the same state is therefore `1 - 
+      K_1 = sqrt(probability ) * X
+
+      The probability of the qubit remaining in the same state is therefore `1 -
       probability`.)#")
       .def(py::init<double>(), py::arg("probability"),
            "Initialize the `BitFlipChannel` with the provided `probability`.");
@@ -208,19 +216,40 @@ void bindNoiseChannels(py::module &mod) {
       mod, "PhaseFlipChannel",
       R"#(Models the decoherence of the qubit phase. Its constructor expects a
       float value, `probability`, representing the probability of a random
-      Z-180 rotation being applied to the qubit. 
-      
+      Z-180 rotation being applied to the qubit.
+
       The Kraus Channels are thereby defined to be:
 
       K_0 = sqrt(1 - probability) * I
 
-      K_1 = sqrt(probability ) * Z  
+      K_1 = sqrt(probability ) * Z
 
       The probability of the qubit phase remaining untouched is therefore
       `1 - probability`.)#")
       .def(
           py::init<double>(), py::arg("probability"),
           "Initialize the `PhaseFlipChannel` with the provided `probability`.");
+
+  py::class_<readout_error, kraus_channel>(
+    mod, "ReadoutError",
+    R"#(Models the probabilistic errors that can happen when measuring qubits.
+    It allows to define a custom probability distribution that describes how
+    often a qubit's measurement result differs from its actual state.
+    Its constructor expects a 2x2 matrix of float values that represents the
+    probability matrix applied to the probabilistic state of the qubit measurement.
+    It takes the form of
+
+    P = [[p(0|0), p(0|1)], [p(1|0), p(1,1)]]
+
+    where p(i|j) is the probability of measuring outcome i when the actual state is j
+
+    )#")
+    .def(py::init([](const py::buffer *b) {
+      py::buffer_info info = b->request();
+      std::vector<real> v(info.shape[0] * info.shape[1]);
+      extractKrausData<double>(info, v.data());
+      return readout_error(v);
+    }));
 }
 
 void bindNoise(py::module &mod) {

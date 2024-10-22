@@ -10,7 +10,8 @@
 
 #include "cudaq/host_config.h"
 
-#include <array>
+#include <algorithm>
+#include <cmath>
 #include <complex>
 #include <math.h>
 #include <unordered_map>
@@ -180,7 +181,7 @@ protected:
       std::unordered_map<KeyT, std::vector<kraus_channel>, KeyTHash>;
 
   static constexpr const char *availableOps[] = {
-      "x", "y", "z", "h", "s", "t", "rx", "ry", "rz", "r1", "u3"};
+      "x", "y", "z", "h", "s", "t", "rx", "ry", "rz", "r1", "u3", "mx", "my", "mz"};
 
   // The noise model is a mapping of quantum operation
   // names to a Kraus channel applied after the operation is applied.
@@ -297,4 +298,38 @@ public:
     validateCompleteness();
   }
 };
+
+/// @brief readout_error is a type of error that Models
+/// the probabilistic errors that can happen when measuring qubits.
+/// It allows to define a custom probability distribution that describes how
+/// often a qubit's measurement result differs from its actual state.
+/// Its constructor expects a 2x2 matrix of float values that represents the
+/// probability matrix applied to the probabilistic state of the qubit measurement.
+/// It takes the form of
+/// P = [[p(0|0), p(0|1)], [p(1|0), p(1,1)]]
+/// where p(i|j) is the probability of measuring outcome i when the actual state is j
+class readout_error : public kraus_channel {
+public:
+  readout_error(std::vector<cudaq::real> data) : kraus_channel() {
+    ops = probMatrixToKraus(data);
+    validateCompleteness();
+  }
+  template <typename T>
+  readout_error(std::initializer_list<T> &&initList) {
+    ops = probMatrixToKraus(initList);
+    validateCompleteness();
+  }
+private:
+  std::vector<kraus_op>
+  probMatrixToKraus(const std::vector<cudaq::real>& probMatrix) {
+    std::vector<cudaq::complex> k0 = {std::sqrt(probMatrix[0]), 0,
+                                      0, std::sqrt(probMatrix[3])};
+
+    std::vector<cudaq::complex> k1 = {0, std::sqrt(probMatrix[1]),
+                                      std::sqrt(probMatrix[2]), 0};
+
+    return {k0, k1};
+  }
+};
+
 } // namespace cudaq
