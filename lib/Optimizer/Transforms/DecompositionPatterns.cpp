@@ -324,6 +324,40 @@ struct HToPhasedRx : public OpRewritePattern<quake::HOp> {
   }
 };
 
+// quake.h target
+// ───────────────────────────────────
+// quake.ry(-π/2) target
+// quake.z target
+struct HToRyZ : public OpRewritePattern<quake::HOp> {
+  using OpRewritePattern<quake::HOp>::OpRewritePattern;
+
+  void initialize() { setDebugName("HToRyZ"); }
+
+  LogicalResult matchAndRewrite(quake::HOp op,
+                                PatternRewriter &rewriter) const override {
+    if (!op.getControls().empty())
+      return failure();
+
+    // Op info
+    Location loc = op->getLoc();
+    Value target = op.getTarget();
+
+    // Necessary/Helpful constants
+    SmallVector<Value> noControls;
+    Value neg_pi_2 =
+        createConstant(loc, -M_PI_2, rewriter.getF64Type(), rewriter);
+
+    // std::array<Value, 2> parameters = {neg_pi_2};
+    QuakeOperatorCreator qRewriter(rewriter);
+    qRewriter.create<quake::RyOp>(loc, neg_pi_2, noControls, target);
+    qRewriter.create<quake::ZOp>(loc, noControls, target);
+
+    qRewriter.selectWiresAndReplaceUses(op, target);
+    rewriter.eraseOp(op);
+    return success();
+  }
+};
+
 // quake.exp_pauli(theta) target pauliWord
 // ───────────────────────────────────
 // Basis change operations, cnots, rz(theta), adjoint basis change
@@ -1637,6 +1671,7 @@ void cudaq::populateWithAllDecompositionPatterns(RewritePatternSet &patterns) {
   patterns.insert<
     // HOp patterns
     HToPhasedRx,
+    HToRyZ,
     CHToCX,
     // SOp patterns
     SToPhasedRx,
