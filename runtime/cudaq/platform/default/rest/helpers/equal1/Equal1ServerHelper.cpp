@@ -8,10 +8,13 @@
 #include "common/Logger.h"
 #include "common/MeasureCounts.h"
 #include "common/ServerHelper.h"
+#include "common/RestClient.h"
+
 #include "cudaq/utils/cudaq_utils.h"
 
 #include "nlohmann/json.hpp"
 
+#include <filesystem>
 #include <llvm/ADT/StringRef.h>
 
 #include <cstdlib>
@@ -45,10 +48,17 @@ public:
 
   cudaq::sample_result processResults(ServerMessage &postJobResponse, std::string &jobId) override;
 
+  void updatePassPipeline(const std::filesystem::path &platformPath,
+                                  std::string &passPipeline) override;
 private:
+
   std::string equal1ServerURL;
   std::string machine;
   std::string optimizationLevel;
+
+  std::string devicePassPipeline;
+
+  RestClient client;
 
   inline std::optional<std::string> getEnv(llvm::StringRef envVar) const {
     const char* val = std::getenv(envVar.data());
@@ -70,7 +80,18 @@ private:
 
     return defaultValue;
   }
+
+  std::string queryPassPipeline();
 };
+
+
+std::string Equal1ServerHelper::queryPassPipeline() {
+  auto headers = getHeaders();
+  auto deviceProperties = client.get(equal1ServerURL, "devices/" + machine,
+      headers);
+
+  return deviceProperties["passPipeline"].get<std::string>();
+}
 
 void Equal1ServerHelper::initialize(BackendConfig config) {
   cudaq::debug("{}ServerHelper::initialize", name());
@@ -82,11 +103,13 @@ void Equal1ServerHelper::initialize(BackendConfig config) {
   if(!equal1ServerURL.ends_with("/"))
     equal1ServerURL += "/";
 
-  machine = getConfig("EQUAL1_TARGET_MACHINE", "machine", "default");
+  machine = getConfig("EQUAL1_TARGET_MACHINE", "machine", "beta2");
 
   optimizationLevel = getConfig("EQUAL1_OPTIMIZATION_LEVEL", "opt", "1");
 
   parseConfigForCommonParams(config);
+
+  devicePassPipeline = queryPassPipeline();
 
   return;
 }
@@ -166,6 +189,11 @@ cudaq::sample_result Equal1ServerHelper::processResults(ServerMessage &getJobRes
   sample.deserialize(result);
   return sample;
 };
+
+void Equal1ServerHelper::updatePassPipeline(const std::filesystem::path&, std::string &passPipeline) {
+  passPipeline += "," + devicePassPipeline;
+  return;
+}
 
 } // namespace cudaq
 
