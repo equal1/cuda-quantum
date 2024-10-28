@@ -10,6 +10,7 @@
 #include "cudaq/Frontend/nvqpp/AttributeNames.h"
 #include "cudaq/Optimizer/Dialect/CC/CCDialect.h"
 #include "cudaq/Optimizer/Dialect/Quake/QuakeDialect.h"
+#include "cudaq/Optimizer/Dialect/Quake/QuakeInterfaces.h"
 #include "cudaq/Optimizer/Dialect/Quake/QuakeOps.h"
 #include "cudaq/Optimizer/Transforms/Passes.h"
 #include "mlir/IR/PatternMatch.h"
@@ -71,6 +72,16 @@ struct BasisTarget : public ConversionTarget {
           if (info.numControls == unbounded ||
               optor.getControls().size() == info.numControls)
             return info.numControls == optor.getControls().size();
+        }
+        return false;
+      }
+
+      if (auto optor = dyn_cast<quake::MeasurementInterface>(op)) {
+        auto name = optor->getName().stripDialect();
+        for (auto info : legalOperatorSet) {
+          if (info.name != name)
+            continue;
+          return true;
         }
         return false;
       }
