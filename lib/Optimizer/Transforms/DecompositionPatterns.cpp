@@ -13,6 +13,7 @@
 #include "cudaq/Optimizer/Dialect/Quake/QuakeOps.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Rewrite/FrozenRewritePatternSet.h"
+#include <mlir/IR/ValueRange.h>
 
 using namespace mlir;
 
@@ -1415,6 +1416,64 @@ struct U3ToRotations : public OpRewritePattern<quake::U3Op> {
   }
 };
 
+//===----------------------------------------------------------------------===//
+// MxOp decompositions
+//===----------------------------------------------------------------------===//
+
+// quake.mx target
+// ──────────────────────────────────
+// quake.h target
+// quake.mz target
+struct MxToHMz : public OpRewritePattern<quake::MxOp> {
+  using OpRewritePattern<quake::MxOp>::OpRewritePattern;
+
+  void initialize() { setDebugName("MxToHMz"); }
+
+  LogicalResult matchAndRewrite(quake::MxOp op,
+                                PatternRewriter &rewriter) const override {
+
+    // Op info
+    Location loc = op.getLoc();
+    ValueRange targets = op.getTargets();
+
+    rewriter.create<quake::HOp>(loc, targets);
+    rewriter.replaceOpWithNewOp<quake::MzOp>(op, op.getResultTypes(), targets,
+                                             op.getRegisterNameAttr());
+
+    return success();
+  }
+};
+
+//===----------------------------------------------------------------------===//
+// MyOp decompositions
+//===----------------------------------------------------------------------===//
+
+// quake.my target
+// ──────────────────────────────────
+// quake.s target
+// quake.h target
+// quake.mz target
+struct MyToSHMz : public OpRewritePattern<quake::MyOp> {
+  using OpRewritePattern<quake::MyOp>::OpRewritePattern;
+
+  void initialize() { setDebugName("MyToSHMz"); }
+
+  LogicalResult matchAndRewrite(quake::MyOp op,
+                                PatternRewriter &rewriter) const override {
+
+    // Op info
+    Location loc = op.getLoc();
+    ValueRange targets = op.getTargets();
+
+    rewriter.create<quake::SOp>(loc, true, ValueRange{}, ValueRange{}, targets);
+    rewriter.create<quake::HOp>(loc, targets);
+    rewriter.replaceOpWithNewOp<quake::MzOp>(op, op.getResultTypes(), targets,
+                                             op.getRegisterNameAttr());
+
+    return success();
+  }
+};
+
 } // namespace
 
 //===----------------------------------------------------------------------===//
@@ -1461,7 +1520,11 @@ void cudaq::populateWithAllDecompositionPatterns(RewritePatternSet &patterns) {
     SwapToCX,
     // U3Op
     U3ToRotations,
-    ExpPauliDecomposition
+    ExpPauliDecomposition,
+    //MxOp
+    MxToHMz,
+    //MyOp
+    MyToSHMz
   >(patterns.getContext());
   // clang-format on
 }
