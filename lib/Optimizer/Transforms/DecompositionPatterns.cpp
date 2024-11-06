@@ -10,9 +10,15 @@
 #include "cudaq/Optimizer/Builder/Factory.h"
 #include "cudaq/Optimizer/Dialect/CC/CCOps.h"
 #include "cudaq/Optimizer/Dialect/Quake/QuakeDialect.h"
+#include "cudaq/Optimizer/Dialect/Quake/QuakeInterfaces.h"
 #include "cudaq/Optimizer/Dialect/Quake/QuakeOps.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Rewrite/FrozenRewritePatternSet.h"
+#include <llvm/ADT/SmallVector.h>
+#include <mlir/IR/Attributes.h>
+#include <mlir/IR/TypeRange.h>
+#include <mlir/IR/Types.h>
+#include <mlir/IR/Value.h>
 #include <mlir/IR/ValueRange.h>
 
 using namespace mlir;
@@ -110,6 +116,18 @@ public:
     op->replaceAllUsesWith(newWireValues);
   }
 
+  void selectWiresAndReplaceUses(Operation *op, Value measOut,
+                                 ValueRange newValues) {
+    SmallVector<Value, 4> newWireValues;
+    newWireValues.push_back(measOut);
+    for (const auto &v : newValues)
+      if (v.getType().isa<quake::WireType>())
+        newWireValues.push_back(v);
+    assert(op->getResults().size() == newWireValues.size() &&
+           "incorrect number of output wires provided");
+    op->replaceAllUsesWith(newWireValues);
+  }
+
   template <typename OpTy>
   OpTy create(Location location, Value &target) {
     OpTy op;
@@ -151,6 +169,23 @@ public:
       control = *resultIt++;
     if (target.getType().isa<quake::WireType>() && resultIt != resultWiresEnd)
       target = *resultIt;
+    return op;
+  }
+
+  template <typename OpTy>
+  OpTy create(Location location, Type &measOut, SmallVector<Type> &wires,
+              SmallVector<Value> &targets, StringAttr &registerNameAttr) {
+    OpTy op;
+    op = rewriter.create<OpTy>(location, measOut, wires, targets,
+                               registerNameAttr);
+
+    auto resultWires = op.getWires();
+    auto resultIt = resultWires.begin();
+    auto resultWiresEnd = resultWires.end();
+    for (auto &t : targets)
+      if (t.getType().isa<quake::WireType>() && resultIt != resultWiresEnd)
+        t = *resultIt++;
+
     return op;
   }
 
@@ -452,9 +487,20 @@ struct R1ToRz : public OpRewritePattern<quake::R1Op> {
     if (!r1Op.getControls().empty())
       return failure();
 
-    rewriter.replaceOpWithNewOp<quake::RzOp>(
-        r1Op, r1Op.isAdj(), r1Op.getParameters(), r1Op.getControls(),
-        r1Op.getTargets());
+    // Op info
+    Location loc = r1Op->getLoc();
+    Value target = r1Op.getTarget();
+    bool isAdj = r1Op.isAdj();
+    ValueRange parameters = r1Op.getParameters();
+
+    // Necessary/Helpful constants
+    SmallVector<Value> noControls;
+
+    QuakeOperatorCreator qRewriter(rewriter);
+    qRewriter.create<quake::RzOp>(loc, isAdj, parameters, noControls, target);
+
+    qRewriter.selectWiresAndReplaceUses(r1Op, target);
+    rewriter.eraseOp(r1Op);
     return success();
   }
 };
@@ -1434,11 +1480,21 @@ struct MxToHMz : public OpRewritePattern<quake::MxOp> {
 
     // Op info
     Location loc = op.getLoc();
+    Type measOutType = op.getMeasOut().getType();
     ValueRange targets = op.getTargets();
+    SmallVector<Value> targetsVec(targets.begin(), targets.end());
+    StringAttr registerName = op.getRegisterNameAttr();
 
-    rewriter.create<quake::HOp>(loc, targets);
-    rewriter.replaceOpWithNewOp<quake::MzOp>(op, op.getResultTypes(), targets,
-                                             op.getRegisterNameAttr());
+    QuakeOperatorCreator qRewriter(rewriter);
+
+    SmallVector<Type> wires = qRewriter.getResultType(targetsVec);
+
+    qRewriter.create<quake::HOp>(loc, targetsVec);
+    quake::MzOp mzOp = qRewriter.create<quake::MzOp>(loc, measOutType, wires,
+                                                     targetsVec, registerName);
+
+    qRewriter.selectWiresAndReplaceUses(op, mzOp.getMeasOut(), targetsVec);
+    rewriter.eraseOp(op);
 
     return success();
   }
@@ -1463,12 +1519,23 @@ struct MyToSHMz : public OpRewritePattern<quake::MyOp> {
 
     // Op info
     Location loc = op.getLoc();
+    Type measOutType = op.getMeasOut().getType();
     ValueRange targets = op.getTargets();
+    SmallVector<Value> targetsVec(targets.begin(), targets.end());
+    StringAttr registerName = op.getRegisterNameAttr();
 
-    rewriter.create<quake::SOp>(loc, true, ValueRange{}, ValueRange{}, targets);
-    rewriter.create<quake::HOp>(loc, targets);
-    rewriter.replaceOpWithNewOp<quake::MzOp>(op, op.getResultTypes(), targets,
-                                             op.getRegisterNameAttr());
+    QuakeOperatorCreator qRewriter(rewriter);
+
+    SmallVector<Type> wires = qRewriter.getResultType(targetsVec);
+
+    qRewriter.create<quake::SOp>(loc, targetsVec);
+    qRewriter.create<quake::HOp>(loc, targetsVec);
+    qRewriter.create<quake::HOp>(loc, targetsVec);
+    quake::MzOp mzOp = qRewriter.create<quake::MzOp>(loc, measOutType, wires,
+                                                     targetsVec, registerName);
+
+    qRewriter.selectWiresAndReplaceUses(op, mzOp.getMeasOut(), targetsVec);
+    rewriter.eraseOp(op);
 
     return success();
   }
