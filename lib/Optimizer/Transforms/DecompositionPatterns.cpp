@@ -12,6 +12,7 @@
 #include "cudaq/Optimizer/Dialect/Quake/QuakeDialect.h"
 #include "cudaq/Optimizer/Dialect/Quake/QuakeInterfaces.h"
 #include "cudaq/Optimizer/Dialect/Quake/QuakeOps.h"
+#include "cudaq/Optimizer/Dialect/Quake/QuakeTypes.h"
 #include "mlir/IR/PatternMatch.h"
 #include "mlir/Rewrite/FrozenRewritePatternSet.h"
 #include <llvm/ADT/SmallVector.h>
@@ -121,7 +122,7 @@ public:
     SmallVector<Value, 4> newWireValues;
     newWireValues.push_back(measOut);
     for (const auto &v : newValues)
-      if (v.getType().isa<quake::WireType>())
+      if (mlir::isa<quake::WireType>(v.getType()))
         newWireValues.push_back(v);
     assert(op->getResults().size() == newWireValues.size() &&
            "incorrect number of output wires provided");
@@ -158,10 +159,9 @@ public:
 
   template <typename OpTy>
   OpTy create(Location location, Value &control, Value &target) {
-    OpTy op;
-    op = rewriter.create<OpTy>(location, getResultType(control, target), false,
-                               ValueRange{}, control, target,
-                               DenseBoolArrayAttr{});
+    auto op = rewriter.create<OpTy>(location, getResultType(control, target),
+                                    false, ValueRange{}, control, target,
+                                    DenseBoolArrayAttr{});
     auto resultWires = op.getWires();
     auto resultIt = resultWires.begin();
     auto resultWiresEnd = resultWires.end();
@@ -183,7 +183,7 @@ public:
     auto resultIt = resultWires.begin();
     auto resultWiresEnd = resultWires.end();
     for (auto &t : targets)
-      if (t.getType().isa<quake::WireType>() && resultIt != resultWiresEnd)
+      if (mlir::isa<quake::WireType>(t.getType()) && resultIt != resultWiresEnd)
         t = *resultIt++;
 
     return op;
@@ -574,10 +574,10 @@ struct R1ToRz : public OpRewritePattern<quake::R1Op> {
       return failure();
 
     // Op info
-    Location loc = r1Op->getLoc();
-    Value target = r1Op.getTarget();
-    bool isAdj = r1Op.isAdj();
-    ValueRange parameters = r1Op.getParameters();
+    auto loc = r1Op->getLoc();
+    auto target = r1Op.getTarget();
+    auto isAdj = r1Op.isAdj();
+    auto parameters = r1Op.getParameters();
 
     // Necessary/Helpful constants
     SmallVector<Value> noControls;
@@ -1724,11 +1724,11 @@ struct MxToHMz : public OpRewritePattern<quake::MxOp> {
                                 PatternRewriter &rewriter) const override {
 
     // Op info
-    Location loc = op.getLoc();
-    Type measOutType = op.getMeasOut().getType();
-    ValueRange targets = op.getTargets();
+    auto loc = op.getLoc();
+    auto measOutType = op.getMeasOut().getType();
+    auto targets = op.getTargets();
     SmallVector<Value> targetsVec(targets.begin(), targets.end());
-    StringAttr registerName = op.getRegisterNameAttr();
+    auto registerName = op.getRegisterNameAttr();
 
     QuakeOperatorCreator qRewriter(rewriter);
 
@@ -1763,11 +1763,11 @@ struct MyToSHMz : public OpRewritePattern<quake::MyOp> {
                                 PatternRewriter &rewriter) const override {
 
     // Op info
-    Location loc = op.getLoc();
-    Type measOutType = op.getMeasOut().getType();
-    ValueRange targets = op.getTargets();
+    auto loc = op.getLoc();
+    auto measOutType = op.getMeasOut().getType();
+    auto targets = op.getTargets();
     SmallVector<Value> targetsVec(targets.begin(), targets.end());
-    StringAttr registerName = op.getRegisterNameAttr();
+    auto registerName = op.getRegisterNameAttr();
 
     QuakeOperatorCreator qRewriter(rewriter);
 
