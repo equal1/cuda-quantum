@@ -41,6 +41,7 @@ add_cudaq_library(OptTransforms
   LowerToCFG.cpp
   LowerUnwind.cpp
   Mapping.cpp
+  MeasurementMapping.cpp
   MemToReg.cpp
   DependencyAnalysis.cpp
   MultiControlDecomposition.cpp
