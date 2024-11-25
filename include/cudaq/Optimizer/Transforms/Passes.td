@@ -679,6 +679,21 @@ def MappingPrep: Pass<"qubit-mapping-prep", "mlir::ModuleOp"> {
   ];
 }
 
+def MeasurementMapping :
+    Pass<"measurement-mapping", "mlir::func::FuncOp"> {
+  let summary = "Peform the qubit mapping to account for measurement constraints";
+  let description = [{
+    Quake code may contain multi-qubit measurements that are not supported by
+    the target device. This pass performs mapping of the qubits by inserting
+    the necessary swap operations into the Quake IR.
+  }];
+  let dependentDialects = ["cudaq::cc::CCDialect", "quake::QuakeDialect"];
+  let options = [
+    ListOption<"measurementQubits", "measurement-qubits", "unsigned",
+               "Indicies of qubits that support the measurement operation.">
+  ];
+}
+
 
 def MemToReg : Pass<"memtoreg", "mlir::func::FuncOp"> {
   let summary = "Converts memory-SSA to register-SSA form.";
