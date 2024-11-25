@@ -6,7 +6,7 @@
 // the terms of the Apache License 2.0 which accompanies this distribution.   //
 // ========================================================================== //
 
-// RUN: cudaq-opt --func.func(measurement-mapping{measurement-qubits=0,5}) %s | FileCheck %s
+// RUN: cudaq-opt -pass-pipeline='builtin.module(func.func(measurement-mapping{measurement-qubits=0,5}))' %s | FileCheck %s
 
 // This test checks that adds a measurement mapping to the function.
 func.func @checkMeasurementMapping() {
