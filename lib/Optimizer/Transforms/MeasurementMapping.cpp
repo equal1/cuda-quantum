@@ -49,7 +49,11 @@ public:
     if (isa<quake::RefType>(alloc.getType()))
       return 1;
     auto veq = cast<quake::VeqType>(alloc.getType());
-    assert(veq.hasSpecifiedSize() && "veq type must have constant size");
+    if (!veq.hasSpecifiedSize()) {
+      alloc.emitOpError("veq type must have constant size");
+      signalPassFailure();
+      return 0;
+    }
     return veq.getSize();
   }
 
@@ -62,12 +66,11 @@ public:
     SmallVector<quake::ExtractRefOp> extractRefs;
     SmallVector<quake::MeasurementInterface> measurements;
 
-    for (auto &block : func.getRegion())
-      for (auto &op : block)
-        if (isa<quake::ExtractRefOp>(op))
-          extractRefs.push_back(dyn_cast<quake::ExtractRefOp>(op));
-        else if (isa<quake::MeasurementInterface>(op))
-          measurements.push_back(dyn_cast<quake::MeasurementInterface>(op));
+    for (auto &op : func.getOps())
+      if (isa<quake::ExtractRefOp>(op))
+        extractRefs.push_back(dyn_cast<quake::ExtractRefOp>(op));
+      else if (isa<quake::MeasurementInterface>(op))
+        measurements.push_back(dyn_cast<quake::MeasurementInterface>(op));
 
     // Check that all qubit references point to the same vector.
     if (!llvm::all_of(extractRefs, [&](auto &extractRef) {
