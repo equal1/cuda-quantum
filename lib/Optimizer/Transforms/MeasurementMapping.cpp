@@ -16,7 +16,6 @@
 #include "mlir/Transforms/Passes.h"
 #include <algorithm>
 #include <cstddef>
-#include <iostream>
 #include <llvm/ADT/MapVector.h>
 #include <llvm/ADT/STLExtras.h>
 #include <llvm/ADT/SetVector.h>
@@ -26,7 +25,6 @@
 #include <mlir/IR/ValueRange.h>
 #include <mlir/Support/LLVM.h>
 #include <mlir/Support/LogicalResult.h>
-#include <set>
 #include <unordered_map>
 
 namespace cudaq::opt {
@@ -156,8 +154,6 @@ public:
                        std::abs(static_cast<int>(b) - static_cast<int>(index));
               });
           auto targetRefOp = extractRefs[targetQubitIndex];
-          std::cout << "Closest measured qubit to qubit " << index << " is "
-                    << targetQubitIndex << ".\n";
 
           OpBuilder builder(measurement);
 
