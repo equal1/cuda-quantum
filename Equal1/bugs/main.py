@@ -13,7 +13,8 @@ def wrong_count():
 
 
 # pipeline without qubit mapping
-# pipeline with all mapping
+# full pipeline
+# pipeline without measurement mapping
 @cudaq.kernel
 def wrong_count_bell():
     q = cudaq.qvector(4)
