@@ -14,8 +14,106 @@ config:
   platform-qpu: "remote_rest"
   # Tell NVQ++ to generate glue code to set the target backend name
   gen-target-backend: true
-  # Add the orca-qpu library to the link list
+  # Add the equal1-qpu library to the link list
   link-libs: ["-lcudaq-rest-qpu"]
+
+  library-mode: false
+
+  # Full pipeline
+  # platform-lowering-config: >-
+  #   func.func(const-prop-complex,canonicalize,cse,lift-array-alloc),
+  #   globalize-array-values,
+  #   state-prep,
+  #   unitary-synthesis,
+  #   canonicalize,
+  #   apply-op-specialization,
+  #   aggressive-early-inlining,
+  #   expand-measurements,
+  #   unrolling-pipeline,
+  #   func.func(lower-to-cfg),
+  #   canonicalize,
+  #   func.func(multicontrol-decomposition,combine-quantum-alloc,apply-control-negations,add-dealloc),
+  #   canonicalize,
+  #   func.func(factor-quantum-alloc,memtoreg),
+  #   add-wireset,func.func(assign-wire-indices),
+  #   qubit-mapping{device=path(4)},
+  #   canonicalize,
+  #   func.func(regtomem,combine-quantum-alloc,delay-measurements,measurement-mapping{measurement-qubits=0,3}),
+  #   basis-conversion{basis=x,z,y,z(1),rx,ry,rz,mz},
+  #   canonicalize,
+  #   symbol-dce
+
+  # Pipeline without qubit mapping
+  # platform-lowering-config: >-
+  #   func.func(const-prop-complex,canonicalize,cse,lift-array-alloc),
+  #   globalize-array-values,
+  #   state-prep,
+  #   unitary-synthesis,
+  #   canonicalize,
+  #   apply-op-specialization,
+  #   aggressive-early-inlining,
+  #   expand-measurements,
+  #   unrolling-pipeline,
+  #   func.func(lower-to-cfg),
+  #   canonicalize,
+  #   func.func(multicontrol-decomposition,combine-quantum-alloc,apply-control-negations,add-dealloc),
+  #   canonicalize,
+  #   func.func(factor-quantum-alloc,memtoreg),
+  #   add-wireset,func.func(assign-wire-indices),
+  #   canonicalize,
+  #   func.func(regtomem,combine-quantum-alloc,delay-measurements,measurement-mapping{measurement-qubits=0,3}),
+  #   basis-conversion{basis=x,z,y,z(1),rx,ry,rz,mz},
+  #   canonicalize,
+  #   symbol-dce
+
+  # Pipeline without measurement mapping
+  # platform-lowering-config: >-
+  #   func.func(const-prop-complex,canonicalize,cse,lift-array-alloc),
+  #   globalize-array-values,
+  #   state-prep,
+  #   unitary-synthesis,
+  #   canonicalize,
+  #   apply-op-specialization,
+  #   aggressive-early-inlining,
+  #   expand-measurements,
+  #   unrolling-pipeline,
+  #   func.func(lower-to-cfg),
+  #   canonicalize,
+  #   func.func(multicontrol-decomposition,combine-quantum-alloc,apply-control-negations,add-dealloc),
+  #   canonicalize,
+  #   func.func(factor-quantum-alloc,memtoreg),
+  #   add-wireset,func.func(assign-wire-indices),
+  #   qubit-mapping{device=path(4)},
+  #   canonicalize,
+  #   func.func(regtomem,combine-quantum-alloc,delay-measurements),
+  #   basis-conversion{basis=x,z,y,z(1),rx,ry,rz,mz},
+  #   func.func(delay-measurements),
+  #   canonicalize,
+  #   symbol-dce
+
+  # Pipeline without all mapping
+  platform-lowering-config: >-
+    func.func(const-prop-complex,canonicalize,cse,lift-array-alloc),
+    globalize-array-values,
+    state-prep,
+    unitary-synthesis,
+    canonicalize,
+    apply-op-specialization,
+    aggressive-early-inlining,
+    expand-measurements,
+    unrolling-pipeline,
+    func.func(lower-to-cfg),
+    canonicalize,
+    func.func(multicontrol-decomposition,combine-quantum-alloc,apply-control-negations,add-dealloc),
+    canonicalize,
+    func.func(factor-quantum-alloc,memtoreg),
+    add-wireset,func.func(assign-wire-indices),
+    canonicalize,
+    func.func(regtomem,combine-quantum-alloc,delay-measurements),
+    basis-conversion{basis=x,z,y,z(1),rx,ry,rz,mz},
+    func.func(delay-measurements),
+    canonicalize,
+    symbol-dce
 
   codegen-emission: qir-adaptive
 

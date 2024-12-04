@@ -106,7 +106,7 @@ public:
         extendedLayerWeight(extendedLayerWeight), decayDelta(decayDelta),
         roundsDecayReset(roundsDecayReset),
         phyDecay(device.getNumQubits(), 1.0), phyToWire(device.getNumQubits()),
-        allowMeasurementMapping(false) {}
+        allowMeasurementMapping(true) {}
 
   /// Main entry point into SabreRouter routing algorithm
   void route(Block &block, ArrayRef<quake::BorrowWireOp> sources);
@@ -909,7 +909,9 @@ struct MappingPipelineOptions
     : public PassPipelineOptions<MappingPipelineOptions> {
 
 #define DECLARE_SUB_OPTION(_PARENT_STRUCT, _FIELD)                             \
-  PassOptions::Option<decltype(_PARENT_STRUCT::_FIELD)> _FIELD{*this, #_FIELD}
+  PassOptions::Option<decltype(_PARENT_STRUCT::_FIELD)> _FIELD {               \
+    *this, #_FIELD                                                             \
+  }
   DECLARE_SUB_OPTION(MappingPrepOptions, device);
   DECLARE_SUB_OPTION(MappingFuncOptions, extendedLayerSize);
   DECLARE_SUB_OPTION(MappingFuncOptions, extendedLayerWeight);

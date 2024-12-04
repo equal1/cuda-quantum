@@ -1,0 +1,32 @@
+benchmarks:
+  - ae
+  - dj
+  - grover-noancilla
+  - grover-v-chain
+  - ghz
+  - graphstate
+  - portfolioqaoa
+  - portfoliovqe
+  - qaoa
+  - qft
+  - qftentangled
+  - qnn
+  - qpeexact
+  - qpeinexact
+  - qwalk-noancilla
+  - qwalk-v-chain
+  - random
+  - realamprandom
+  - su2random
+  - twolocalrandom
+  - vqe
+  - wstate
+  - shor
+  - pricingcall
+  - pricingput
+  - groundstate
+  - routing
+  - tsp
+target: equal1
+emulate: True
+max_qubits: 4
