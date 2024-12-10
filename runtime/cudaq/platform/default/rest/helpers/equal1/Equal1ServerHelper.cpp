@@ -112,12 +112,10 @@ void Equal1ServerHelper::initialize(BackendConfig config) {
 
   parseConfigForCommonParams(config);
 
-  devicePassPipeline = queryPassPipeline();
-
-  if (config.count("emulate") && config["emulate"] == "false")
-    devicePassPipeline = queryPassPipeline();
+  if (config.count("emulate") && config["emulate"] == "true")
+    devicePassPipeline = "func.func(const-prop-complex),canonicalize,cse";
   else
-    devicePassPipeline = "const-prop-complex, canonicalize,cse";
+    devicePassPipeline = queryPassPipeline();
 
   return;
 }
