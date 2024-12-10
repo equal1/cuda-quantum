@@ -7,8 +7,8 @@
  ******************************************************************************/
 #include "common/Logger.h"
 #include "common/MeasureCounts.h"
-#include "common/ServerHelper.h"
 #include "common/RestClient.h"
+#include "common/ServerHelper.h"
 
 #include "cudaq/utils/cudaq_utils.h"
 
@@ -26,17 +26,18 @@
 namespace cudaq {
 
 class Equal1ServerHelper : public ServerHelper {
-  static constexpr const llvm::StringLiteral DEFAULT_URL = "http://localhost:62444";
+  static constexpr const llvm::StringLiteral DEFAULT_URL =
+      "http://localhost:62444";
 
 public:
-
-  const std::string name() const override {return "equal1";}
+  const std::string name() const override { return "equal1"; }
 
   void initialize(BackendConfig config) override;
 
   RestHeaders getHeaders() override;
 
-  ServerJobPayload createJob(std::vector<KernelExecution> &circuitNodes) override;
+  ServerJobPayload
+  createJob(std::vector<KernelExecution> &circuitNodes) override;
 
   std::string extractJobId(ServerMessage &postResponse) override;
 
@@ -46,12 +47,13 @@ public:
 
   bool jobIsDone(ServerMessage &getJobResponse) override;
 
-  cudaq::sample_result processResults(ServerMessage &postJobResponse, std::string &jobId) override;
+  cudaq::sample_result processResults(ServerMessage &postJobResponse,
+                                      std::string &jobId) override;
 
   void updatePassPipeline(const std::filesystem::path &platformPath,
-                                  std::string &passPipeline) override;
-private:
+                          std::string &passPipeline) override;
 
+private:
   std::string equal1ServerURL;
   std::string machine;
   std::string optimizationLevel;
@@ -61,21 +63,23 @@ private:
   RestClient client;
 
   inline std::optional<std::string> getEnv(llvm::StringRef envVar) const {
-    const char* val = std::getenv(envVar.data());
-    if(!val)
+    const char *val = std::getenv(envVar.data());
+    if (!val)
       return std::nullopt;
     return std::string(val);
   }
 
-  inline std::string getConfig(const std::string& envVarName, const std::string& configName, const std::string& defaultValue) {
-    if(envVarName.data()) {
+  inline std::string getConfig(const std::string &envVarName,
+                               const std::string &configName,
+                               const std::string &defaultValue) {
+    if (envVarName.data()) {
       auto env = getEnv(envVarName);
-      if(env.has_value())
+      if (env.has_value())
         return env.value();
     }
 
     auto iter = backendConfig.find(configName);
-    if(iter != backendConfig.end())
+    if (iter != backendConfig.end())
       return iter->second;
 
     return defaultValue;
@@ -84,11 +88,10 @@ private:
   std::string queryPassPipeline();
 };
 
-
 std::string Equal1ServerHelper::queryPassPipeline() {
   auto headers = getHeaders();
-  auto deviceProperties = client.get(equal1ServerURL, "devices/" + machine,
-      headers);
+  auto deviceProperties =
+      client.get(equal1ServerURL, "devices/" + machine, headers);
 
   return deviceProperties["passPipeline"].get<std::string>();
 }
@@ -100,7 +103,7 @@ void Equal1ServerHelper::initialize(BackendConfig config) {
 
   equal1ServerURL = getConfig("EQUAL1_SERVER_URL", "url", DEFAULT_URL.str());
 
-  if(!equal1ServerURL.ends_with("/"))
+  if (!equal1ServerURL.ends_with("/"))
     equal1ServerURL += "/";
 
   machine = getConfig("EQUAL1_TARGET_MACHINE", "machine", "beta2");
@@ -110,6 +113,11 @@ void Equal1ServerHelper::initialize(BackendConfig config) {
   parseConfigForCommonParams(config);
 
   devicePassPipeline = queryPassPipeline();
+
+  if (config.count("emulate") && config["emulate"] == "false")
+    devicePassPipeline = queryPassPipeline();
+  else
+    devicePassPipeline = "canonicalize";
 
   return;
 }
@@ -127,13 +135,14 @@ RestHeaders Equal1ServerHelper::getHeaders() {
   return headers;
 }
 
-ServerJobPayload Equal1ServerHelper::createJob(std::vector<KernelExecution> &circuitNodes) {
+ServerJobPayload
+Equal1ServerHelper::createJob(std::vector<KernelExecution> &circuitNodes) {
   cudaq::debug("{}ServerHelper::createJob", name());
 
   assert(circuitNodes.size() == 1 && "Currently only supporting one message");
 
   std::vector<ServerMessage> messages;
-  for(const auto& code : circuitNodes) {
+  for (const auto &code : circuitNodes) {
     ServerMessage m;
     m["target"] = name();
     m["machine"] = machine;
@@ -151,13 +160,12 @@ ServerJobPayload Equal1ServerHelper::createJob(std::vector<KernelExecution> &cir
 std::string Equal1ServerHelper::extractJobId(ServerMessage &postResponse) {
   cudaq::debug("{}ServerHelper::extractJobId", name());
 
-  std::string jobToken =
-      postResponse["jobId"]
-          .get<std::string>();
+  std::string jobToken = postResponse["jobId"].get<std::string>();
   return jobToken;
 }
 
-std::string Equal1ServerHelper::constructGetJobPath(ServerMessage &postResponse) {
+std::string
+Equal1ServerHelper::constructGetJobPath(ServerMessage &postResponse) {
   cudaq::debug("{}ServerHelper::extractJobId", name());
   return equal1ServerURL + "jobs/" + extractJobId(postResponse);
 }
@@ -169,7 +177,7 @@ std::string Equal1ServerHelper::constructGetJobPath(std::string &jobId) {
 
 bool Equal1ServerHelper::jobIsDone(ServerMessage &getJobResponse) {
   auto status = getJobResponse["status"]
-                  .get<std::string>(); // All job get and post responses at an
+                    .get<std::string>(); // All job get and post responses at an
                                          // array of [resdata, httpstatuscode]
   if (status == "error") {
     std::string msg = getJobResponse["message"].get<std::string>();
@@ -180,8 +188,9 @@ bool Equal1ServerHelper::jobIsDone(ServerMessage &getJobResponse) {
     return status == "done";
 }
 
-
-cudaq::sample_result Equal1ServerHelper::processResults(ServerMessage &getJobResponse, std::string &jobId) {
+cudaq::sample_result
+Equal1ServerHelper::processResults(ServerMessage &getJobResponse,
+                                   std::string &jobId) {
   cudaq::info("postJobResponse: {}", name());
 
   auto result = getJobResponse["results"].get<std::vector<std::size_t>>();
@@ -190,7 +199,8 @@ cudaq::sample_result Equal1ServerHelper::processResults(ServerMessage &getJobRes
   return sample;
 };
 
-void Equal1ServerHelper::updatePassPipeline(const std::filesystem::path&, std::string &passPipeline) {
+void Equal1ServerHelper::updatePassPipeline(const std::filesystem::path &,
+                                            std::string &passPipeline) {
   passPipeline += "," + devicePassPipeline;
   return;
 }
