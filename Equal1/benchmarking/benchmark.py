@@ -11,6 +11,8 @@ from omegaconf import OmegaConf
 import argparse
 from dataclasses import dataclass
 from typing import List
+from uuid import uuid4
+import os
 
 
 def benchmark_algorithm(algorithm) -> Tuple[str, float]:
@@ -64,7 +66,7 @@ def sample_result_to_dict(counts) -> dict:
 def run_benchmarks(benchmarks, min_qubits, max_qubits) -> pd.DataFrame:
     i = 0
     df = pd.DataFrame(
-        columns=["benchmark", "qubits", "gates", "sample_time", "counts"],
+        columns=["benchmark", "qubits", "gates", "depth", "sample_time", "counts"],
     )
     for benchmark_name in benchmarks:
         for qubits in tqdm(range(min_qubits, max_qubits + 1), desc=benchmark_name):
@@ -84,6 +86,7 @@ def run_benchmarks(benchmarks, min_qubits, max_qubits) -> pd.DataFrame:
                 algorithm.name,
                 algorithm.n_qubits,
                 algorithm.n_gates,
+                algorithm.depth(),
                 sample_time,
                 counts_dict,
             ]
@@ -100,7 +103,8 @@ class BenchmarkConfig:
     target: str = "nvidia"
     emulate: bool = False
     url: str = "http://host.docker.internal:62123"
-    precision: str = "fp64"
+    precision: str = "fp32"
+    output_path: str = uuid4()
 
 
 if __name__ == "__main__":
@@ -134,4 +138,7 @@ if __name__ == "__main__":
 
     compiler_settings = CompilerSettings(tket=TKETSettings(placement="linplacement"))
     df = run_benchmarks(conf.benchmarks, conf.min_qubits, conf.max_qubits)
-    df.to_csv("benchmark_results.csv", index=False)
+
+    # Save the results
+    df.to_csv(os.path.join(conf.output_path, "benchmark_results.csv"), index=False)
+    OmegaConf.save(config=conf, f=os.path.join(conf.output_path, "config.yaml"))
