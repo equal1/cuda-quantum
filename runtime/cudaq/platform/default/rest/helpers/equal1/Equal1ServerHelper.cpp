@@ -117,7 +117,7 @@ void Equal1ServerHelper::initialize(BackendConfig config) {
   if (config.count("emulate") && config["emulate"] == "false")
     devicePassPipeline = queryPassPipeline();
   else
-    devicePassPipeline = "canonicalize";
+    devicePassPipeline = "const-prop-complex, canonicalize,cse";
 
   return;
 }
