@@ -55,6 +55,7 @@ from .kernel.kernel_builder import make_kernel, QuakeValue, PyKernel
 from .kernel.ast_bridge import globalAstRegistry, globalKernelRegistry, globalRegisteredOperations
 from .runtime.sample import sample
 from .runtime.observe import observe
+from .runtime.compile import compile
 from .runtime.state import to_cupy
 from .kernel.register_op import register_operation
 from .mlir._mlir_libs._quakeDialects import cudaq_runtime
@@ -168,7 +169,7 @@ def synthesize(kernel, *args):
 
 def complex():
     """
-    Return the data type for the current simulation backend, 
+    Return the data type for the current simulation backend,
     either `numpy.complex128` or `numpy.complex64`.
     """
     target = get_target()
@@ -180,8 +181,8 @@ def complex():
 
 def amplitudes(array_data):
     """
-    Create a state array with the appropriate data type for the 
-    current simulation backend target. 
+    Create a state array with the appropriate data type for the
+    current simulation backend target.
     """
     return numpy.array(array_data, dtype=complex())
 

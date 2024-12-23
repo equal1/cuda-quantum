@@ -37,6 +37,7 @@
 #include "llvm/IR/Module.h"
 #include "llvm/Support/Base64.h"
 #include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/raw_ostream.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Dialect/LLVMIR/LLVMDialect.h"
@@ -536,7 +537,8 @@ public:
     }
 
     // Get the code gen translation
-    auto translation = cudaq::getTranslation(codegenTranslation);
+    auto translationToUse = executionContext->name != "compile" ? codegenTranslation : "mlir-asm";
+    auto translation = cudaq::getTranslation(translationToUse);
 
     // Apply user-specified codegen
     std::vector<cudaq::KernelExecution> codes;
@@ -549,11 +551,11 @@ public:
         if (failed(translation(moduleOpI, outStr, postCodeGenPasses, printIR,
                                enablePrintMLIREachPass, enablePassStatistics)))
           throw std::runtime_error("Could not successfully translate to " +
-                                   codegenTranslation + ".");
+                                   translationToUse + ".");
       }
 
       // Form an output_names mapping from codeStr
-      nlohmann::json j = formOutputNames(codegenTranslation, codeStr);
+      nlohmann::json j = formOutputNames(translationToUse, codeStr);
 
       codes.emplace_back(name, codeStr, j, mapping_reorder_idx);
     }
@@ -616,6 +618,13 @@ public:
       invokeJITKernelAndRelease(jitEngines[0], kernelName);
       cudaq::getExecutionManager()->resetExecutionContext();
       jitEngines.clear();
+      return;
+    }
+
+    if (executionContext->name == "compile") {
+      for(const auto &code : codes) {
+        executionContext->codes.push_back(std::move(code.code));
+      }
       return;
     }
 

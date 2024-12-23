@@ -10,6 +10,7 @@
 
 #include "Logger.h"
 #include "Timing.h"
+#include "common/RuntimeMLIR.h"
 #include "cudaq/Frontend/nvqpp/AttributeNames.h"
 #include "cudaq/Optimizer/Builder/Runtime.h"
 #include "cudaq/Optimizer/CodeGen/IQMJsonEmitter.h"
@@ -30,6 +31,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/ErrorOr.h"
 #include "llvm/Support/Host.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/TargetSelect.h"
 #include "mlir/ExecutionEngine/ExecutionEngine.h"
 #include "mlir/ExecutionEngine/OptUtils.h"
@@ -41,6 +43,10 @@
 #include "mlir/Target/LLVMIR/Dialect/LLVMIR/LLVMToLLVMIRTranslation.h"
 #include "mlir/Target/LLVMIR/Export.h"
 #include "mlir/Tools/ParseUtilities.h"
+#include "mlir/IR/Operation.h"
+#include "mlir/Support/LogicalResult.h"
+
+#include <string>
 
 namespace cudaq {
 
@@ -554,6 +560,19 @@ void registerToIQMJsonTranslation() {
         }
         return passed;
       });
+}
+
+void registerToMlirAsmTranslation() {
+  cudaq::TranslateFromMLIRRegistration reg(
+    "mlir-asm", "translate from any  MLIR dialect to mlir ASM",
+        [](mlir::Operation *op, llvm::raw_string_ostream &output,
+            const std::string &additionalPasses, bool printIR,
+            bool printIntermediateMLIR, bool printStats) {
+            ScopedTraceWithContext(cudaq::TIMING_JIT, "MLIR ASM translation");
+            op->print(output);
+            return mlir::success();
+        }
+  );
 }
 
 void insertSetupAndCleanupOperations(mlir::Operation *module) {
