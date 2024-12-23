@@ -71,6 +71,7 @@ protected:
       registerToQIRTranslation();
       registerToOpenQASMTranslation();
       registerToIQMJsonTranslation();
+      registerToMlirAsmTranslation();
       registerLLVMDialectTranslation(*context);
       return true;
     }();
