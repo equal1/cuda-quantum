@@ -1,5 +1,5 @@
 # ============================================================================ #
-# Copyright (c) 2022 - 2024 NVIDIA Corporation & Affiliates.                   #
+# Copyright (c) 2022 - 2025 NVIDIA Corporation & Affiliates.                   #
 # All rights reserved.                                                         #
 #                                                                              #
 # This source code and the accompanying materials are made available under     #
@@ -25,7 +25,6 @@ def compile(kernel : PyKernel , *args):
     newKernel = PyKernel([])
     newModule = mlir.Module.parse(asm = ctx.codes[0], context=newKernel.ctx)
 
-    #TODO: implement some clone mechanism
     newKernel.metadata = kernel.metadata
     newKernel.regCounter = kernel.regCounter
     newKernel.funcName = kernel.funcName
