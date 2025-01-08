@@ -16,6 +16,7 @@
 #include "cudaq/algorithms/optimizer.h"
 #include <optional>
 #include <string_view>
+#include <vector>
 
 namespace cudaq {
 class spin_op;
@@ -84,6 +85,10 @@ public:
   /// @brief When run under the tracer context, persist the
   /// traced quantum resources here.
   Trace kernelTrace;
+
+  /// @brief When run under the compile context, store the resulting
+  /// IR codes here
+  std::vector<std::string> codes;
 
   /// @brief The name of the kernel being executed.
   std::string kernelName = "";
