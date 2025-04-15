@@ -277,6 +277,7 @@ void bindNoiseChannels(py::module &mod) {
            ":class:`KrausOperator`'s.")
       .def_readwrite("parameters", &kraus_channel::parameters)
       .def_readwrite("noise_type", &kraus_channel::noise_type)
+      .def_property_readonly("is_unitary_mixture", &kraus_channel::is_unitary_mixture)
       .def(
           "__getitem__",
           [](kraus_channel &self, std::size_t idx) { return self[idx]; },
