@@ -14,6 +14,7 @@
 #include "cudaq/qis/state.h"
 #include <cmath>
 #include <complex>
+#include <cstdint>
 #include <string>
 #include <type_traits>
 #include <vector>
@@ -631,6 +632,10 @@ void __quantum__rt__result_record_output(Result *r, int8_t *name) {
   if (name && qubitPtrIsIndex)
     __quantum__qis__mz__to__register(measRes2QB[r],
                                      reinterpret_cast<const char *>(name));
+}
+
+void __quantum__rt__array_record_output(int64_t idx, int8_t *name) {
+  return;
 }
 
 static std::vector<std::size_t> safeArrayToVectorSizeT(Array *arr) {
